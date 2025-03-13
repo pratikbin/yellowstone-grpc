@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -255,6 +256,24 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 			log.Fatalf("Error occurred in receiving update: %v", err)
 		}
 
-		log.Printf("%v %v", timestamp, resp)
+		if resp.GetBlock() != nil {
+			block := resp.GetBlock()
+			blockTime := block.GetBlockTime()
+
+			currentTime := time.Now()
+			blockTimeInTime := time.Unix(blockTime.GetTimestamp(), 0)
+			latency := currentTime.Sub(blockTimeInTime)
+
+			blockSizeByte, err := proto.Marshal(block)
+			if err != nil {
+				log.Printf("Error marshaling block to get size: %v", err)
+				blockSizeByte = []byte{}
+			}
+			blockSizeKB := float64(len(blockSizeByte)) / 1024.0 // Convert bytes to KB
+
+			log.Printf("Block no: %v, Block Latency: %s, Block Size: %.2f KB", block.BlockHeight, latency, blockSizeKB)
+		} else {
+			log.Printf("Block no: %v, Received non-block response", timestamp)
+		}
 	}
 }
